@@ -1,0 +1,76 @@
+"""
+Backup-Skript
+Packt einen Ordner als ZIP mit Datum im Namen und löscht alte Backups.
+
+Aufruf:
+    python backup.py QUELLORDNER ZIELORDNER
+    python backup.py QUELLORDNER ZIELORDNER --behalten 3
+"""
+
+import argparse
+import shutil
+import sys
+from datetime import datetime
+from pathlib import Path
+
+
+def erstelle_backup(quelle: Path, ziel: Path) -> Path:
+    """Packt den Quellordner als ZIP in den Zielordner und gibt den Pfad zurück."""
+    ziel.mkdir(parents=True, exist_ok=True)
+
+    # Zeitstempel im Namen, damit jedes Backup eindeutig und sortierbar ist
+    zeitstempel = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    name = f"{quelle.name}_{zeitstempel}"
+
+    # make_archive hängt die Endung .zip selbst an
+    archiv = shutil.make_archive(str(ziel / name), "zip", root_dir=quelle)
+    return Path(archiv)
+
+
+def loesche_alte_backups(quelle: Path, ziel: Path, behalten: int) -> list[Path]:
+    """Behält nur die neuesten Backups und löscht den Rest."""
+    # Durch den Zeitstempel im Namen ist alphabetisch sortiert = zeitlich sortiert
+    backups = sorted(ziel.glob(f"{quelle.name}_*.zip"))
+    zu_loeschen = backups[:-behalten]
+
+for datei in zu_loeschen:
+        datei.unlink()
+    return zu_loeschen
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Erstellt ein ZIP-Backup eines Ordners.")
+    parser.add_argument("quelle", type=Path, help="Ordner, der gesichert werden soll")
+    parser.add_argument("ziel", type=Path, help="Ordner, in dem die Backups landen")
+    parser.add_argument(
+        "--behalten",
+        type=int,
+        default=5,
+        help="Anzahl der Backups, die aufbewahrt werden (Standard: 5)",
+    )
+    args = parser.parse_args()
+
+    # Eingaben prüfen, bevor etwas passiert
+    if not args.quelle.is_dir():
+        sys.exit(f"Fehler: Der Ordner '{args.quelle}' existiert nicht.")
+    if args.behalten < 1:
+        sys.exit("Fehler: --behalten muss mindestens 1 sein.")
+
+    quelle = args.quelle.resolve()
+    ziel = args.ziel.resolve()
+
+    # Liegt das Ziel im Quellordner, würde sich das Backup selbst mitsichern
+    if ziel == quelle or quelle in ziel.parents:
+        sys.exit("Fehler: Der Zielordner darf nicht im Quellordner liegen.")
+
+    archiv = erstelle_backup(quelle, ziel)
+    groesse_mb = archiv.stat().st_size / 1_000_000
+    print(f"Backup erstellt: {archiv.name} ({groesse_mb:.2f} MB)")
+
+    geloescht = loesche_alte_backups(quelle, ziel, args.behalten)
+    for datei in geloescht:
+        print(f"Altes Backup gelöscht: {datei.name}")
+
+
+if __name__ == "__main__":
+main()
