@@ -33,7 +33,7 @@ def loesche_alte_backups(quelle: Path, ziel: Path, behalten: int) -> list[Path]:
     backups = sorted(ziel.glob(f"{quelle.name}_*.zip"))
     zu_loeschen = backups[:-behalten]
 
-for datei in zu_loeschen:
+    for datei in zu_loeschen:
         datei.unlink()
     return zu_loeschen
 
@@ -73,4 +73,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-main()
+    main()
